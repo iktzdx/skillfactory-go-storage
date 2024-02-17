@@ -1,0 +1,15 @@
+---
+version: "3.9"
+
+services:
+  db:
+    image: postgres
+    volumes:
+      - ./migrations/001_create_table.up.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASS}
