@@ -1,0 +1,48 @@
+---
+run:
+  go: "1.21"
+  deadline: 2m
+  build-tags:
+    - mock
+    - integration
+linters:
+  enable-all: true
+  disable:
+    - golint
+    - exhaustivestruct
+    - maligned
+    - interfacer
+    - scopelint
+    - ifshort
+    - varcheck
+    - structcheck
+    - deadcode
+    - nosnakecase
+    - varnamelen
+    - tagalign
+    - paralleltest
+linters-settings:
+  revive:
+    rules:
+      - name: unexported-return
+        disabled: true
+  misspell:
+    locale: US
+  gci:
+    sections:
+      - Standard
+      - Default
+      - Prefix(skillfactory-go)
+  lll:
+    line-length: 140
+  depguard:
+    rules:
+      main:
+        allow:
+          - $gostd
+          - github.com
+issues:
+  exclude-rules:
+    - linters:
+        - lll
+      source: "^//go:generate "
