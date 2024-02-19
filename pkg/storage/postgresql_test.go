@@ -52,7 +52,7 @@ func (s *PostgreSQLTestSuite) flushFixtures(ctx context.Context, minID int) erro
 	return nil
 }
 
-func (s *PostgreSQLTestSuite) compareTasks(expected, actual Task) {
+func (s *PostgreSQLTestSuite) compareTask(expected, actual Task) {
 	s.Require().Equal(expected.ID, actual.ID, "compare id")
 	s.Require().Equal(expected.AuthorID, actual.AuthorID, "compare author id")
 	s.Require().Equal(expected.AssignedID, actual.AssignedID, "compare assigned id")
@@ -64,6 +64,24 @@ func (s *PostgreSQLTestSuite) compareTasks(expected, actual Task) {
 
 	err = isDateEqual(expected.Closed, actual.Closed)
 	s.Require().NoError(err, "compare closed date")
+}
+
+func (s *PostgreSQLTestSuite) compareListOfTasks(expected, actual Tasks, amount int) {
+	listedMap := make(map[int]Task, amount)
+	wantedMap := make(map[int]Task, len(expected))
+
+	for _, wt := range expected {
+		wantedMap[wt.ID] = wt
+	}
+
+	for _, lt := range actual {
+		listedMap[lt.ID] = lt
+	}
+
+	for i := 0; i < amount; i++ {
+		key := actual[i].ID
+		s.compareTask(wantedMap[key], listedMap[key])
+	}
 }
 
 func isDateEqual(expected, actual time.Time) error {
@@ -79,31 +97,35 @@ func TestPostgreSQLTestSuite(t *testing.T) {
 }
 
 func (s *PostgreSQLTestSuite) SetupSuite() {
-	ctx := context.Background()
-
 	dsn := "postgres://postgres:example@localhost:5432/postgres?sslmode=disable"
 
 	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(dsn)))
 	s.db = bun.NewDB(sqldb, pgdialect.New())
 
 	s.repo = NewRepoPostgreSQL(s.db)
+}
+
+func (s *PostgreSQLTestSuite) SetupTest() {
+	ctx := context.Background()
 
 	err := s.applyFixtures(ctx, FixtureTasks())
 	s.Require().NoError(err)
 }
 
 func (s *PostgreSQLTestSuite) TearDownSuite() {
+	err := s.db.Close()
+	s.Require().NoError(err)
+}
+
+func (s *PostgreSQLTestSuite) TearDownTest() {
 	ctx := context.Background()
 
 	err := s.flushFixtures(ctx, int(randomFactor))
 	s.Require().NoError(err)
-
-	err = s.db.Close()
-	s.Require().NoError(err)
 }
 
 func (s *PostgreSQLTestSuite) TestGetCreatedTaskByID() {
-	s.Run("Task exists", func() {
+	s.Run("Get an existing task", func() {
 		ctx := context.Background()
 
 		want := Task{
@@ -112,7 +134,7 @@ func (s *PostgreSQLTestSuite) TestGetCreatedTaskByID() {
 			Closed:     time.Time{},
 			AuthorID:   1,
 			AssignedID: 1,
-			Title:      "Test task #1",
+			Title:      "Test Get Created Task By ID #1",
 			Content:    "AR game blending reality with interactive virtual elements.",
 		}
 
@@ -123,10 +145,10 @@ func (s *PostgreSQLTestSuite) TestGetCreatedTaskByID() {
 		got, err := s.repo.GetByID(ctx, want.ID)
 		s.Require().NoError(err)
 
-		s.compareTasks(want, got)
+		s.compareTask(want, got)
 	})
 
-	s.Run("Task not founded", func() {
+	s.Run("Try to get a non-existent task", func() {
 		ctx := context.Background()
 		_, err := s.repo.GetByID(ctx, genRandTaskID(randomFactor))
 		s.Require().ErrorIs(err, sql.ErrNoRows)
@@ -134,6 +156,8 @@ func (s *PostgreSQLTestSuite) TestGetCreatedTaskByID() {
 }
 
 func (s *PostgreSQLTestSuite) TestListCreatedTasks() {
+	const expectedAmountFound int = 2
+
 	ctx := context.Background()
 
 	want := Tasks{
@@ -182,9 +206,47 @@ func (s *PostgreSQLTestSuite) TestListCreatedTasks() {
 
 	s.Require().NoError(err)
 	s.Require().NotEmpty(listedTasks)
+	s.Require().Len(listedTasks, expectedAmountFound)
 
-	const expectedAmount int = 2
-	for i := 0; i < expectedAmount; i++ {
-		s.compareTasks(want[i], listedTasks[i])
-	}
+	s.compareListOfTasks(want, listedTasks, expectedAmountFound)
+}
+
+func (s *PostgreSQLTestSuite) TestUpdateTask() {
+	s.Run("Update an existing task", func() {
+		ctx := context.Background()
+
+		want := FixtureTask4()
+		change := Task{
+			ID:         want.ID,
+			Opened:     time.Now().UTC().AddDate(0, 0, -2),
+			Closed:     time.Now().UTC(),
+			AuthorID:   0,
+			AssignedID: 0,
+			Title:      "Test Update Task #1",
+			Content:    "Blockchain implementation for secure transactions.",
+		}
+
+		_, err := s.repo.Create(ctx, want)
+		s.Require().NoError(err)
+
+		_, err = s.repo.GetByID(ctx, want.ID)
+		s.Require().NoError(err)
+
+		affected, err := s.repo.Update(ctx, change)
+		s.Require().NoError(err)
+		s.Require().Equal(1, affected)
+
+		afterUpdate, err := s.repo.GetByID(ctx, want.ID)
+		s.Require().NoError(err)
+
+		s.compareTask(change, afterUpdate)
+	})
+
+	s.Run("Try to update a non-existent task", func() {
+		ctx := context.Background()
+
+		affected, err := s.repo.Update(ctx, FixtureTask5())
+		s.Require().NoError(err)
+		s.Require().Equal(0, affected)
+	})
 }

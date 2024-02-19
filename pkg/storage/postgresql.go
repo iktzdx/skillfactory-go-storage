@@ -61,23 +61,19 @@ func (r *postgreSQLRepo) GetByID(ctx context.Context, taskID int) (Task, error) 
 func (r *postgreSQLRepo) List(ctx context.Context, opts SearchOptions) (Tasks, error) {
 	var tasksRows rows
 
-	/*
-	   SELECT t.*
-	   FROM "tasks" AS "t"
-	   JOIN tasks_labels AS tls ON tls.task_id = t.id
-	   JOIN labels AS l on l.id = tls.label_id
-	   WHERE (t.author_id = 1)
-	   OR (tls.label_id = 0)
-	   ORDER BY "t"."id" ASC
-	*/
-
 	query := r.db.NewSelect().
 		Model((*row)(nil)).
 		ColumnExpr("?", bun.Safe("t.*")).
 		Join("JOIN tasks_labels AS tls ON tls.task_id = t.id").
 		Join("JOIN labels AS l on l.id = tls.label_id").
-		Where("t.author_id = ?", opts.AuthorID).
-		WhereOr("tls.label_id = ?", opts.LabelID).
+		WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("? = ?", 0, opts.AuthorID).
+				WhereOr("t.author_id = ?", opts.AuthorID)
+		}).
+		WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
+			return q.Where("? = ?", 0, opts.LabelID).
+				WhereOr("tls.label_id = ?", opts.LabelID)
+		}).
 		Order("t.id ASC")
 
 	if opts.Limit != 0 {

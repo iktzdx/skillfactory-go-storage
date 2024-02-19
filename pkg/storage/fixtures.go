@@ -8,7 +8,7 @@ import (
 
 const randomFactor float64 = 100000
 
-func FixtureTask_1() Task {
+func FixtureTask1() Task {
 	return Task{
 		ID:         int(randomFactor) + 1,
 		Opened:     time.Now().UTC(),
@@ -20,7 +20,7 @@ func FixtureTask_1() Task {
 	}
 }
 
-func FixtureTask_2() Task {
+func FixtureTask2() Task {
 	return Task{
 		ID:         int(randomFactor) + 2,
 		Opened:     time.Now().UTC(),
@@ -32,20 +32,44 @@ func FixtureTask_2() Task {
 	}
 }
 
-func FixtureTask_3() Task {
+func FixtureTask3() Task {
 	return Task{
 		ID:         int(randomFactor) + 3,
 		Opened:     time.Now().UTC(),
 		Closed:     time.Time{},
 		AuthorID:   1,
-		AssignedID: 1,
+		AssignedID: 0,
 		Title:      "Fixture #3",
 		Content:    "Script AI ethics short film.",
 	}
 }
 
+func FixtureTask4() Task {
+	return Task{
+		ID:         int(randomFactor) + 4,
+		Opened:     time.Now().UTC(),
+		Closed:     time.Time{},
+		AuthorID:   1,
+		AssignedID: 1,
+		Title:      "Fixture #4",
+		Content:    "Space exploration data analysis.",
+	}
+}
+
+func FixtureTask5() Task {
+	return Task{
+		ID:         int(randomFactor) + 5,
+		Opened:     time.Now().UTC(),
+		Closed:     time.Time{},
+		AuthorID:   0,
+		AssignedID: 1,
+		Title:      "Fixture #5",
+		Content:    "Build a chatbot using NLP and programming language.",
+	}
+}
+
 func FixtureTasks() Tasks {
-	return Tasks{FixtureTask_1(), FixtureTask_2(), FixtureTask_3()}
+	return Tasks{FixtureTask1(), FixtureTask2(), FixtureTask3()}
 }
 
 func genRandTaskID(f float64) int {
