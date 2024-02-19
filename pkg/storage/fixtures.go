@@ -1,85 +1,53 @@
 package storage
 
 import (
-	"context"
+	"math"
+	"math/rand/v2"
 	"time"
-
-	"github.com/pkg/errors"
-	"github.com/uptrace/bun"
 )
 
-const (
-	fixtureTask1ID int = 1337
-	fixtureTask2ID int = 7331
-	fixtureTask3ID int = 1234
+const randomFactor float64 = 100000
 
-	openedAfterDays int = 5
-
-	author1ID int = 1
-	author2ID int = 2
-)
-
-func FixtureTask1() Task {
+func FixtureTask_1() Task {
 	return Task{
-		ID:         fixtureTask1ID,
+		ID:         int(randomFactor) + 1,
+		Opened:     time.Now().UTC(),
+		Closed:     time.Now().UTC().AddDate(0, 0, 2),
+		AuthorID:   0,
+		AssignedID: 0,
+		Title:      "Fixture #1",
+		Content:    "Describe a tech-nature utopia.",
+	}
+}
+
+func FixtureTask_2() Task {
+	return Task{
+		ID:         int(randomFactor) + 2,
+		Opened:     time.Now().UTC(),
+		Closed:     time.Now().UTC().AddDate(0, 0, 5),
+		AuthorID:   0,
+		AssignedID: 1,
+		Title:      "Fixture #2",
+		Content:    "Write a kitten's forest adventure.",
+	}
+}
+
+func FixtureTask_3() Task {
+	return Task{
+		ID:         int(randomFactor) + 3,
 		Opened:     time.Now().UTC(),
 		Closed:     time.Time{},
-		AuthorID:   author1ID,
-		AssignedID: author1ID,
-		Title:      "Fixture Task #1",
-		Content:    "This is a task #1 for tests.",
+		AuthorID:   1,
+		AssignedID: 1,
+		Title:      "Fixture #3",
+		Content:    "Script AI ethics short film.",
 	}
 }
 
-func FixtureTask2() Task {
-	return Task{
-		ID:         fixtureTask2ID,
-		Opened:     time.Now().UTC().AddDate(0, 0, openedAfterDays),
-		Closed:     time.Time{},
-		AuthorID:   author2ID,
-		AssignedID: author2ID,
-		Title:      "Fixture Task #2",
-		Content:    "This is a task #2 for tests.",
-	}
+func FixtureTasks() Tasks {
+	return Tasks{FixtureTask_1(), FixtureTask_2(), FixtureTask_3()}
 }
 
-func FixtureTask3() Task {
-	layout := "2006-Jan-02"
-	timeOpened, _ := time.Parse(layout, "2023-Dec-31")
-
-	return Task{
-		ID:         fixtureTask3ID,
-		Opened:     timeOpened,
-		Closed:     time.Time{},
-		AuthorID:   author1ID,
-		AssignedID: author2ID,
-		Title:      "Fixture Task #3",
-		Content:    "This is a task #3 for tests.",
-	}
-}
-
-func ApplyPostgreSQLFixtures(ctx context.Context, db *bun.DB, fxs Tasks) error {
-	for _, fx := range fxs {
-		fx := taskToRow(fx)
-
-		_, err := db.NewInsert().Model(&fx).Exec(ctx)
-		if err != nil {
-			return errors.Wrap(err, "cannot apply fixture")
-		}
-	}
-
-	return nil
-}
-
-func CleanPostgreSQLFixtures(ctx context.Context, db *bun.DB, fxs Tasks) error {
-	for _, fx := range fxs {
-		fx := taskToRow(fx)
-
-		_, err := db.NewDelete().Model(&fx).WherePK().Exec(ctx)
-		if err != nil {
-			return errors.Wrap(err, "cannot delete fixture")
-		}
-	}
-
-	return nil
+func genRandTaskID(f float64) int {
+	return int(math.Round((rand.Float64() * f) + f))
 }

@@ -14,8 +14,8 @@ CREATE TABLE tasks (
     id SERIAL PRIMARY KEY,
     opened TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     closed TIMESTAMPTZ DEFAULT NULL,
-    author_id INTEGER DEFAULT 1 REFERENCES users(id) ON DELETE SET DEFAULT,
-    assigned_id INTEGER DEFAULT 1 REFERENCES users(id) ON DELETE SET DEFAULT,
+    author_id INTEGER REFERENCES users(id) DEFAULT 0,
+    assigned_id INTEGER REFERENCES users(id) DEFAULT 0,
     title TEXT NOT NULL,
     content TEXT
 );
@@ -25,12 +25,15 @@ CREATE TABLE tasks_labels (
     label_id INTEGER REFERENCES labels(id) ON DELETE CASCADE
 );
 
-INSERT INTO users (name) VALUES ('user #1'), ('user #2');
+INSERT INTO users (id, name)
+VALUES (0, 'John Doe'), (1, 'Jane Doe');
 
-INSERT INTO labels (name) VALUES ('example');
+INSERT INTO labels (id, name)
+VALUES (0, 'Work'), (1, 'Personal');
 
-INSERT INTO tasks (title, content)
-VALUES ('example task #1', 'This is a test task.'),
-        ('example task #2', 'This is another test task.');
+INSERT INTO tasks (id, author_id, title, content)
+VALUES (0, 0, 'Example task #1', 'This is a test task.'),
+       (1, 0, 'Example task #2', 'This is another test task.');
 
-INSERT INTO tasks_labels VALUES (1, 1), (2, 1);
+INSERT INTO tasks_labels (task_id, label_id)
+VALUES (0, 1), (1, 1)

@@ -25,19 +25,26 @@ func (r *postgreSQLRepo) Create(ctx context.Context, t Task) (int, error) {
 
 	affected, err := res.RowsAffected()
 	if err != nil {
+		return -1, errors.Wrap(err, "last inserted task")
+	}
+
+	return int(affected), nil
+}
+
+func (r *postgreSQLRepo) BulkCreate(ctx context.Context, ts Tasks) (int, error) {
+	tasksRows := tasksToRows(ts)
+
+	res, err := r.db.NewInsert().Model(&tasksRows).Exec(ctx)
+	if err != nil {
+		return -1, errors.Wrap(err, "insert multiple tasks")
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
 		return -1, errors.Wrap(err, "get affected rows")
 	}
 
-	if affected == 0 {
-		return -1, errors.New("number of rows affected must be greater than 0")
-	}
-
-	taskID, err := res.LastInsertId()
-	if err != nil {
-		return -1, errors.Wrap(err, "get last inserted ID")
-	}
-
-	return int(taskID), nil
+	return int(affected), nil
 }
 
 func (r *postgreSQLRepo) GetByID(ctx context.Context, taskID int) (Task, error) {
@@ -54,25 +61,24 @@ func (r *postgreSQLRepo) GetByID(ctx context.Context, taskID int) (Task, error) 
 func (r *postgreSQLRepo) List(ctx context.Context, opts SearchOptions) (Tasks, error) {
 	var tasksRows rows
 
+	/*
+	   SELECT t.*
+	   FROM "tasks" AS "t"
+	   JOIN tasks_labels AS tls ON tls.task_id = t.id
+	   JOIN labels AS l on l.id = tls.label_id
+	   WHERE (t.author_id = 1)
+	   OR (tls.label_id = 0)
+	   ORDER BY "t"."id" ASC
+	*/
+
 	query := r.db.NewSelect().
 		Model((*row)(nil)).
-		ColumnExpr("tasks.*").
-		Join("JOIN tasks_labels AS tls ON tls.task_id = tasks.id").
+		ColumnExpr("?", bun.Safe("t.*")).
+		Join("JOIN tasks_labels AS tls ON tls.task_id = t.id").
 		Join("JOIN labels AS l on l.id = tls.label_id").
-		Order("id ASC")
-
-	query = query.WhereGroup(" AND ", func(q *bun.SelectQuery) *bun.SelectQuery {
-		authorID := opts.AuthorID
-		labelID := opts.LabelID
-
-		q = q.Where("? = 0", authorID).
-			WhereOr("author_id = ?", authorID)
-
-		q = q.Where("? = 0", labelID).
-			WhereOr("l.id = ?", labelID)
-
-		return q
-	})
+		Where("t.author_id = ?", opts.AuthorID).
+		WhereOr("tls.label_id = ?", opts.LabelID).
+		Order("t.id ASC")
 
 	if opts.Limit != 0 {
 		query = query.Limit(opts.Limit)
@@ -85,6 +91,12 @@ func (r *postgreSQLRepo) List(ctx context.Context, opts SearchOptions) (Tasks, e
 	err := query.Scan(ctx, &tasksRows)
 	if err != nil {
 		return Tasks{}, errors.Wrap(err, "list tasks")
+	}
+
+	if len(tasksRows) == 0 {
+		err := errors.New("error while scan list")
+
+		return Tasks{}, errors.Wrapf(err, "q: %v\n", query.String())
 	}
 
 	return rowsToTasks(tasksRows), nil
@@ -103,32 +115,19 @@ func (r *postgreSQLRepo) Update(ctx context.Context, t Task) (int, error) {
 		return -1, errors.Wrap(err, "get affected rows")
 	}
 
-	if affected == 0 {
-		return -1, errors.New("number of rows affected must be greater than 0")
-	}
-
-	taskID, err := res.LastInsertId()
-	if err != nil {
-		return -1, errors.Wrap(err, "get last updated ID")
-	}
-
-	return int(taskID), nil
+	return int(affected), nil
 }
 
-func (r *postgreSQLRepo) Delete(ctx context.Context, taskID int) error {
+func (r *postgreSQLRepo) Delete(ctx context.Context, taskID int) (int, error) {
 	res, err := r.db.NewDelete().Model((*row)(nil)).Where("id = ?", taskID).Exec(ctx)
 	if err != nil {
-		return errors.Wrap(err, "delete a task")
+		return -1, errors.Wrap(err, "delete a task")
 	}
 
 	affected, err := res.RowsAffected()
 	if err != nil {
-		return errors.Wrap(err, "get affected rows")
+		return -1, errors.Wrap(err, "get affected rows")
 	}
 
-	if affected == 0 {
-		return errors.New("number of rows affected must be greater than 0")
-	}
-
-	return nil
+	return int(affected), nil
 }

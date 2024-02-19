@@ -9,10 +9,10 @@ import (
 type rows []row
 
 type row struct {
-	bun.BaseModel `bun:"table:tasks"`
+	bun.BaseModel `bun:"table:tasks,alias:t"`
 
 	ID         int       `bun:"id,pk,autoincrement"`
-	Opened     time.Time `bun:"opened,nullzero,notnull,default:current_timestamp"`
+	Opened     time.Time `bun:"opened,notnull,default:current_timestamp"`
 	Closed     time.Time `bun:"closed,nullzero"`
 	AuthorID   int       `bun:"author_id"`
 	AssignedID int       `bun:"assigned_id"`
@@ -42,6 +42,16 @@ func rowToTask(r row) Task {
 		Title:      r.Title,
 		Content:    r.Content,
 	}
+}
+
+func tasksToRows(ts Tasks) rows {
+	rows := make(rows, len(ts))
+
+	for idx, t := range ts {
+		rows[idx] = taskToRow(t)
+	}
+
+	return rows
 }
 
 func rowsToTasks(rs rows) Tasks {
